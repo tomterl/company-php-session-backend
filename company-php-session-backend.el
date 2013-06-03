@@ -109,7 +109,7 @@ BODY you can access the output of COMMAND in
 				 (comint-redirect-results-list-from-process
 				  (cpsb/get-comint-process)
 				  ,command
-				  ";; -- php completion begin ;;\\((.+)\\);; -- php completion end ;;"
+				  ";; -- php completion begin ;;\\([\"(].+[\")]\\);; -- php completion end ;;"
 				  1))
 		   (setq cpsb/redirect-string
 				 (car cpsb/redirect-strings))
@@ -138,11 +138,25 @@ BODY you can access the output of COMMAND in
 			(read cpsb/redirect-string)
 		  ()))))
 
+(defun cpsb/get-short-doc (name)
+  "Return the first 80 characters of the documenting comment of
+  PHP elelemnt NAME;"
+  (ignore-errors 
+	(cpsb/boris-command 
+	 (concat "get_doc_string(\"" name "\", true);")
+	 (if cpsb/redirect-string
+		 (progn 
+		   (let ((doc (read cpsb/redirect-string)))
+			 (message (concat "DOc " doc))
+			 doc
+			 ))))))
+
 ;;;###autoload
 (defun company-php-session-backend (command &optional arg &rest ignored)
   "Looks arround at point and produces more or less fitting
   completion candidates for php"
   (case command
+	('init (and (cpsb/get-comint) (sleep-for .5)))
 	('prefix (and (eq major-mode 'php-mode)
 				  (or (company-grab-symbol) 'stop)))
 	('sorted t)
@@ -154,7 +168,8 @@ BODY you can access the output of COMMAND in
 						  (looking-back "new" 4)))
 				   (all-completions arg (cpsb/php-classes)))
 				  
-				  (t (all-completions arg  (cpsb/php-functions)))))))
+				  (t (all-completions arg  (cpsb/php-functions)))))
+	('meta (cpsb/get-short-doc arg))))
 
 (provide 'company-php-session-backend)
 

@@ -29,25 +29,140 @@ if(!defined("ELISP_INFO_LOADED")) {
     define("RESULT_MARK_BEGIN", ";; -- php completion begin ;;");
     define("RESULT_MARK_END", ";; -- php completion end ;;");
 
+    $__elisp_info_cache = array (
+        'internal' => null,
+        'short_docs' => array(),
+        'docs' => array(),
+        'classes' => null
+    );
+
+    /**
+     * @return string elisp list string representation
+     */
     function defined_internal_functions() {
         defined_functions("internal");
     }
 
+    /**
+     * @return string elisp list string representation
+     */
     function defined_functions($type) {
-        $funcs=get_defined_functions();
-        print_result($funcs[$type]);        
-    }
-
-    function declared_classes(){
-        print_result(get_declared_classes());
-    }
-
-    function print_result($arr) {
-        echo '' . RESULT_MARK_BEGIN . "(";
-        sort($arr);
-        foreach($arr as $item) {
-            echo "\"" . addslashes($item) . "\" "; 
+        global $__elisp_info_cache;
+        if($__elisp_info_cache['internal']) {
+            print_result($__elisp_info_cache['internal']);
+        } else {
+            $funcs=get_defined_functions();
+            $__elisp_info_cache['internal'] = $funcs;
+            print_result($funcs[$type]);
         }
-        echo ")" . RESULT_MARK_END . "\n";
     }
-}    
+
+    /**
+     * @return string elisp list string representation
+     */
+    function declared_classes(){
+        global $__elisp_info_cache;
+        if ($__elisp_info_cache['classes']) {
+            print_result($__elisp_info_cache['classes']);
+       } else {
+            $classes = get_declared_classes();
+            $__elisp_info_cache['classes'] = $classes;
+            print_result($classes);
+        }
+    }
+
+    /**
+     * @param string $name object name
+     * @param boolean $short short description, or complete doc comment?
+     * @return string elisp string
+     */
+    function get_doc_string($name, $short = false) {
+        if (!$name || $name == '') return "";
+        global $__elisp_info_cache;
+        $doc = "";
+        if (function_exists($name)) {
+            if ($short) {
+                if (array_key_exists($name, $__elisp_info_cache['short_docs'])) {
+                    $doc = $__elisp_info_cache['short_docs'][$name];
+                } else {
+                    $rfl = new ReflectionFunction($name);
+                    $doc = build_func_string($rfl);
+                    $__elisp_info_cache['short_docs'][$name] = $doc;
+                }
+            }
+        }
+
+        $doc = preg_replace("~\n~s", "\\n", $doc);
+        print_result($doc);
+
+    }
+
+    /**
+     * @param array|string $arg
+     * @return string elisp string representation of $arg
+     */
+    function print_result($arg) {
+        if (is_array($arg)) {
+            echo '' . RESULT_MARK_BEGIN . "(";
+            sort($arg);
+            foreach($arg as $item) {
+                echo "\"" . addslashes($item) . "\" ";
+            }
+            echo ")" . RESULT_MARK_END . "\n";
+        } else {
+            echo '' . RESULT_MARK_BEGIN . "\"";
+            echo $arg;
+            echo "\"" . RESULT_MARK_END . "\n";
+        }
+
+    }
+
+    /**
+     * @param ReflectionFunction $func function to build doc string for
+     * @return string short doc string for $func
+     */
+    function build_func_string(ReflectionFunction &$func) {
+        $str = "";
+        $matches = array();
+
+        if (preg_match("~@return\s+([^ ]+)~", $func->getDocComment(),&$matches)) {
+            $str .= $matches[1] . " ";
+        }
+        $name = $func->getName();
+
+        $str .= $name . "";
+        $str .= "(";
+        if ($func->getNumberOfParameters() > 0) {
+            foreach ($func->getParameters() as $param) {
+                if ($param->isOptional()) {
+                    $str .= "<opt> ";
+                }
+                if ($param->isArray()) {
+                    $str .= "array ";
+                } else {
+                    if (preg_match("~@param\s+([^ ]+)\s+\${$name}~",
+                                   $func->getDocComment(),&$matches)) {
+                        $str .= $matches[1];
+                    }
+                }
+                if ($param->isPassedByReference()) {
+                    $str .= "&";
+                }
+                $str .= "$" . $param->getName();
+                if ($param->isDefaultValueAvailable()) {
+                    $str .= " = ";
+                    if ($param->isDefaultValueConstant()) {
+                        $str .= $param->getDefaultValueConstantName;
+                    } else {
+                        $str .= "" . $param->getDefaultValue();
+                    }
+                }
+                $str .= ", ";
+            }
+            // remove last comma
+            $str = substr($str, 0, strlen($str) - 2);
+        }
+        $str .= ")";
+        return $str;
+    }
+}
