@@ -145,11 +145,7 @@ BODY you can access the output of COMMAND in
 	(cpsb/boris-command 
 	 (concat "get_doc_string(\"" name "\", true);")
 	 (if cpsb/redirect-string
-		 (progn 
-		   (let ((doc (read cpsb/redirect-string)))
-			 (message (concat "DOc " doc))
-			 doc
-			 ))))))
+		 (read cpsb/redirect-string)))))
 
 ;;;###autoload
 (defun company-php-session-backend (command &optional arg &rest ignored)
