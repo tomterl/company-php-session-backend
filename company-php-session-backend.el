@@ -72,8 +72,8 @@ creating it if it does not exist."
 creating it -- and starting boris --  if it does not exist."
   (interactive)
   (setq comint-eol-on-send t)
-  (setq comint-prompt-regexp "\\[[^]]+\\] boris> ")
-  (setq comint-prompt-read-only t)
+  (setq comint-prompt-regexp "\\[[^]]+\\] boris> ?")
+  (setq comint-prompt-read-only nil)
   (setq comint-use-prompt-regexp nil)
   (setq comint-process-echoes nil)
   (apply 'make-comint-in-buffer 
@@ -98,7 +98,7 @@ creating it -- and starting boris --  if it does not exist."
   "Send CMD to boris, execute BODY after boris finished
 In BODY you can access the output in `cpsb/redirect-string`"
   `(save-excursion 
-	 (cpsb/get-comint)
+	 (with-current-buffer (cpsb/get-comint) (goto-char (point-max)))
 	 ;; clear old output
 	 (unwind-protect	
 		 (let (cpsb/redirect-strings cpsb/redirect-string)
@@ -117,7 +117,14 @@ In BODY you can access the output in `cpsb/redirect-string`"
 		 (comint-bol)
 		 (kill-region (point) (point-max))))))
 (def-edebug-spec cpsb/boris-command (command body)) 
-  
+
+(defun cpsb/php-classes ()
+  "Ask boris for all declared classes, retrurn their names as list"
+  (cpsb/boris-command
+   "declared_classes();"
+   (if cpsb/redirect-string
+	   (read cpsb/redirect-string))))
+
 (defun cpsb/fetch-internal-function-list ()
   "Ask boris for all defined internal php-functions, return their
   names as list; set cpsb/internal-function-list "
@@ -136,7 +143,14 @@ In BODY you can access the output in `cpsb/redirect-string`"
 				  (not (company-in-string-or-comment))
 				  (or (company-grab-symbol) 'stop)))
 	('sorted t)
-	('candidates (all-completions arg  (cpsb/php-functions)))))
+	('candidates (cond 
+				  (
+				   (save-excursion
+					 (re-search-backward "\\s-+" nil t)
+					 (looking-back "new" 4))
+				   (all-completions arg (cpsb/php-classes)))
+				  
+				  (t (all-completions arg  (cpsb/php-functions)))))))
 
 (provide 'company-php-session-backend)
 

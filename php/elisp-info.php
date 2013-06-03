@@ -14,11 +14,15 @@ if(!defined("ELISP_INFO_LOADED")) {
         print_result($funcs[$type]);        
     }
 
+    function declared_classes(){
+        print_result(get_declared_classes());
+    }
+
     function print_result($arr) {
         echo '' . RESULT_MARK_BEGIN . "(";
         sort($arr);
         foreach($arr as $item) {
-            echo "\"{$item}\" "; 
+            echo "\"" . addslashes($item) . "\" "; 
         }
         echo ")" . RESULT_MARK_END . "\n";
     }
