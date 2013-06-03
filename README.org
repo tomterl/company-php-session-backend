@@ -1,0 +1,59 @@
+* Dynamic completion candidates in PHP code with boris
+
+** Status
+
+This is a company backend that uses boris as a comint-process to get
+completion candidates directly and dynamically from PHP.
+
+*This is ALPHA software*. At this moment only internal functions and
+declared classes after =new= are available.
+
+This is my practical playground to learn more emacs-lisp, and in the
+process getting a working tool to use in work-related PHP programming
+endeavours.
+
+** Installation
+
+Clone this repo and tell emacs about it's location
+
+: (add-to-list 'load-path (expand-file-name "~/where/the/repo/sits"))
+
+** Usage
+
+I suggest to combine it with =company-dabbrev-code= and
+=company-keywords= like
+
+#+BEGIN_SRC emacs-lisp
+ (require 'company-php-session-backend)
+ (add-to-list 'company-backends '(company-dabbrev-code company-php-session-backend company-keywords))
+#+END_SRC
+
+** How does it work?
+
+The PHP repl, boris, is started as a comint buffer process, preloaded
+with a couple of functions, that provide the desired results in a
+format that can be read with =read= by emacs.
+
+** What are the goals?
+
+The backend will determine completion candidates using Reflection
+classes where applicable, loading code into the comint process. I
+don't know yet how far this can be realized because of at least two
+major obstacles:
+
+- Only declarations should be given to the PHP process, as
+  side effects of non declarative code would be executed, with
+  possible disastrous results. Since in my own code, I have a clear
+  distinction by using =include= if the included code is included to
+  run directly for its side effects, and =require= is used when I want
+  declarations to be accessible, I will make this a prerequisite for
+  using this backend
+- Without employing the =runkit= extension, it is not possible to
+  directly redefine functions, classes and methods. I don't want to
+  impose runkit on possible users (or myself). The solution I have in
+  mind is to use temporary, generated classes with random names,
+  mapping the current valid representative. This will lead to ever
+  growing memory consumption by the comint process. Somehow saving
+  state and restarting the process once a certain limit is reached
+  could be a viable solution.
+

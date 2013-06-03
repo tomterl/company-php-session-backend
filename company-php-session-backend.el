@@ -46,7 +46,6 @@
 ;;
 (require 'company)
 (require 'comint)
-(require 'deferred)
 
 (defvar cpsb/boris-buffer-name "php-completion"
   "Clear text part of the buffer used for the boris session.")
@@ -61,6 +60,9 @@
 
 (defvar cpsb/internal-function-list '() 
   "Holds the list of php internal function names")
+
+(defvar cpsb/at-tags '("@author"  "@param"  "@return")
+"php-doc tags in comments")
 
 (defun cpsb/get-boris-buffer ()
   "Return the buffer used to hold the boris comint session,
@@ -95,8 +97,9 @@ creating it -- and starting boris --  if it does not exist."
 	(cpsb/fetch-internal-function-list)))
 
 (defmacro cpsb/boris-command  (command &rest body)
-  "Send CMD to boris, execute BODY after boris finished
-In BODY you can access the output in `cpsb/redirect-string`"
+  "Send COMMAND to boris, execute BODY after boris finished In
+BODY you can access the output of COMMAND in
+`cpsb/redirect-string`"
   `(save-excursion 
 	 (with-current-buffer (cpsb/get-comint) (goto-char (point-max)))
 	 ;; clear old output
@@ -119,7 +122,7 @@ In BODY you can access the output in `cpsb/redirect-string`"
 (def-edebug-spec cpsb/boris-command (command body)) 
 
 (defun cpsb/php-classes ()
-  "Ask boris for all declared classes, retrurn their names as list"
+  "Ask boris for all declared classes, return their names as list"
   (cpsb/boris-command
    "declared_classes();"
    (if cpsb/redirect-string
@@ -127,7 +130,7 @@ In BODY you can access the output in `cpsb/redirect-string`"
 
 (defun cpsb/fetch-internal-function-list ()
   "Ask boris for all defined internal php-functions, return their
-  names as list; set cpsb/internal-function-list "
+  names as list; set cpsb/internal-function-list"
   (cpsb/boris-command 
    "defined_internal_functions();" 
    (setq cpsb/internal-function-list
@@ -135,19 +138,20 @@ In BODY you can access the output in `cpsb/redirect-string`"
 			(read cpsb/redirect-string)
 		  ()))))
 
+;;;###autoload
 (defun company-php-session-backend (command &optional arg &rest ignored)
-  "Looks at the current symbol under point and produces more or
-  less fitting completion candidates"
+  "Looks arround at point and produces more or less fitting
+  completion candidates for php"
   (case command
 	('prefix (and (eq major-mode 'php-mode)
-				  (not (company-in-string-or-comment))
 				  (or (company-grab-symbol) 'stop)))
 	('sorted t)
-	('candidates (cond 
-				  (
-				   (save-excursion
-					 (re-search-backward "\\s-+" nil t)
-					 (looking-back "new" 4))
+	('candidates (cond
+				  ((company-in-string-or-comment)
+				   (all-completions arg cpsb/at-tags))
+				  ((save-excursion
+					 (and (re-search-backward "\\s-+" nil t)
+						  (looking-back "new" 4)))
 				   (all-completions arg (cpsb/php-classes)))
 				  
 				  (t (all-completions arg  (cpsb/php-functions)))))))
