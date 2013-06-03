@@ -51,9 +51,6 @@
 (defvar cpsb/boris-buffer-name "php-completion"
   "Clear text part of the buffer used for the boris session.")
 
-(defvar cpsb/redirect-buffer-name "php-redirection"
-  "Clear text part of the buffer used for boris output redirection.")
-
 (defvar cpsb/boris-program "/home/tom/bin/boris"
   "The boris executable")
 
@@ -70,16 +67,13 @@
 creating it if it does not exist."
   (get-buffer-create (concat " *" cpsb/boris-buffer-name "*") ))
 
-(defun cpsb/get-redirect-buffer ()
-  "Return the buffer used to redirect boris output to."
-  (get-buffer-create (concat " *" cpsb/redirect-buffer-name "*") ))
-
 (defun cpsb/get-comint ()
-  "Return the comint process, creating it if it does not exist."
+  "Return the comint buffer attached to the boris process,
+creating it -- and starting boris --  if it does not exist."
   (interactive)
   (setq comint-eol-on-send t)
-  (setq comint-prompt-regexp "\\[[^]]+\\] boris> ?")
-  (setq comint-prompt-read-only nil)
+  (setq comint-prompt-regexp "\\[[^]]+\\] boris> ")
+  (setq comint-prompt-read-only t)
   (setq comint-use-prompt-regexp nil)
   (setq comint-process-echoes nil)
   (apply 'make-comint-in-buffer 
@@ -89,6 +83,9 @@ creating it if it does not exist."
 			   nil 
 			   "-r" (concat cpsb/php-libpath "/elisp-info.php"))))
 
+(defun cpsb/get-comint-process ()
+  "Return the comint process attached to the comint buffer."
+  (get-buffer-process (cpsb/get-comint)))
 
 (defun cpsb/php-functions ()
   "Return the names of all defined php funparctions as list"
@@ -104,19 +101,15 @@ In BODY you can access the output in `cpsb/redirect-string`"
 	 (cpsb/get-comint)
 	 ;; clear old output
 	 (unwind-protect	
-		 (let (cpsb/redirect-string)
-		   (with-current-buffer (cpsb/get-redirect-buffer)(erase-buffer))
-		   (comint-redirect-send-command-to-process
-			,command
-			(cpsb/get-redirect-buffer)
-			(cpsb/get-comint)
-			nil t)
-		   (setq cpsb/redirect-string 
-				 (with-current-buffer (cpsb/get-redirect-buffer)
-				   (goto-char (point-max))
-				   (let ((start (and (re-search-backward ";; -- php completion begin ;;" nil t)(match-end 0)))
-						 (end  (and (re-search-forward ";; -- php completion end ;;" nil t)(match-beginning 0))))
-					 (buffer-substring-no-properties start end))))
+		 (let (cpsb/redirect-strings cpsb/redirect-string)
+		   (setq cpsb/redirect-strings 
+				 (comint-redirect-results-list-from-process
+				  (cpsb/get-comint-process)
+				  ,command
+				  ";; -- php completion begin ;;\\((.+)\\);; -- php completion end ;;"
+				  1))
+		   (setq cpsb/redirect-string
+				 (car cpsb/redirect-strings))
 		   ,@body)
 	   ;; clear boris buffer
 	   (with-current-buffer (cpsb/get-boris-buffer)
@@ -131,7 +124,9 @@ In BODY you can access the output in `cpsb/redirect-string`"
   (cpsb/boris-command 
    "defined_internal_functions();" 
    (setq cpsb/internal-function-list
-		(read cpsb/redirect-string))))
+		(if cpsb/redirect-string
+			(read cpsb/redirect-string)
+		  ()))))
 
 (defun company-php-session-backend (command &optional arg &rest ignored)
   "Looks at the current symbol under point and produces more or
