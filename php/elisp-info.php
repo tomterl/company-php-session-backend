@@ -90,6 +90,17 @@ if(!defined("ELISP_INFO_LOADED")) {
                     $__elisp_info_cache['short_docs'][$name] = $doc;
                 }
             }
+        } else if (class_exists($name, false)) {
+            if ($short) {
+                if (array_key_exists($name, 
+                                     $__elisp_info_cache['short_docs']["class_" . $name])) {
+                    $doc = $__elisp_info_cache['short_docs']["class_" . $name];
+                } else {
+                    $rfl = new ReflectionClass($name);
+                    $doc = build_class_string($rfl);
+                    $__elisp_info_cache['short_docs']["class_" . $name] = $doc;
+                }
+            }
         }
 
         $doc = preg_replace("~\n~s", "\\n", $doc);
@@ -114,7 +125,6 @@ if(!defined("ELISP_INFO_LOADED")) {
             echo $arg;
             echo "\"" . RESULT_MARK_END . "\n";
         }
-
     }
 
     /**
@@ -164,5 +174,8 @@ if(!defined("ELISP_INFO_LOADED")) {
         }
         $str .= ")";
         return $str;
+    }
+
+    function build_class_string($name) {
     }
 }
