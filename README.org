@@ -57,3 +57,17 @@ major obstacles:
   state and restarting the process once a certain limit is reached
   could be a viable solution.
 
+** Roadmap
+- [ ] Complete docComments as 'doc-buffer result
+- [ ] caching in elisp
+- [ ] methods and members for declared classes
+- [ ] method to analyze opened php-mode buffers
+  to be used as post load hook and on-save hook
+  - [ ] load into boris and analyze functions
+  - [ ] load into boris and analyze classes
+  - [ ] analyze any required() files
+  - [ ] support autoloader
+  - [ ] allow redefinition of classes and functions
+- [ ] persist completion data (prin1-s-exps in sqlite3?!)
+- [ ] use deferred.el to analyze in background
+- [ ] allow for/ease eproject.el integration
