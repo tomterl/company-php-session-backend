@@ -76,7 +76,7 @@ if(!defined("ELISP_INFO_LOADED")) {
      * @param boolean $short short description, or complete doc comment?
      * @return string elisp string
      */
-    function get_doc_string($name, $short = false) {
+    function doc_string($name, $short = false) {
         if (!$name || $name == '') return "";
         global $__elisp_info_cache;
         $doc = "";
@@ -89,6 +89,8 @@ if(!defined("ELISP_INFO_LOADED")) {
                     $doc = build_func_string($rfl);
                     $__elisp_info_cache['short_docs'][$name] = $doc;
                 }
+            } else {
+                $doc = $rfl->getDocComment();
             }
         } else if (class_exists($name, false)) {
             if ($short) {
@@ -100,6 +102,8 @@ if(!defined("ELISP_INFO_LOADED")) {
                     $doc = build_class_string($rfl);
                     $__elisp_info_cache['short_docs']["class_" . $name] = $doc;
                 }
+            } else {
+                $doc = $rfl->getDocComment();
             }
         }
 

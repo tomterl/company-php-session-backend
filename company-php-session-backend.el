@@ -90,15 +90,16 @@ creating it -- and starting boris --  if it does not exist."
   (get-buffer-process (cpsb/get-comint)))
 
 (defun cpsb/php-functions ()
-  "Return the names of all defined php funparctions as list"
+  "Return the names of all defined php functions as list"
   (if (and (boundp 'cpsb/internal-function-list)
 		   cpsb/internal-function-list)
 	  cpsb/internal-function-list
 	(cpsb/fetch-internal-function-list)))
 
 (defmacro cpsb/boris-command  (command &rest body)
-  "Send COMMAND to boris, execute BODY after boris finished In
-BODY you can access the output of COMMAND in
+  "Send php COMMAND to boris, execute BODY after boris finished.
+
+ In BODY you can access the output of COMMAND in
 `cpsb/redirect-string`"
   `(save-excursion 
 	 (with-current-buffer (cpsb/get-comint) (goto-char (point-max)))
@@ -138,34 +139,42 @@ BODY you can access the output of COMMAND in
 			(read cpsb/redirect-string)
 		  ()))))
 
-(defun cpsb/get-short-doc (name)
+(defun cpsb/fetch-short-doc (name)
   "Return the first 80 characters of the documenting comment of
   PHP elelemnt NAME;"
   (ignore-errors 
 	(cpsb/boris-command 
-	 (concat "get_doc_string(\"" name "\", true);")
+	 (concat "doc_string(\"" name "\", true);")
 	 (if cpsb/redirect-string
 		 (read cpsb/redirect-string)))))
 
+(defun cpsb/candidates (command arg)
+  "Looks arround at point and produces more or less fitting
+completion candidates for php."
+  (cond
+   ((company-in-string-or-comment)
+	(all-completions arg cpsb/at-tags))
+   ((save-excursion
+	  (and (re-search-backward "\\s-+" nil t)
+		   (looking-back "new" 4)))
+	(all-completions arg (cpsb/php-classes)))
+   (t (all-completions arg  (cpsb/php-functions)))))
+
 ;;;###autoload
 (defun company-php-session-backend (command &optional arg &rest ignored)
-  "Looks arround at point and produces more or less fitting
-  completion candidates for php"
+  "Implementing company backend commands for php code.
+
+See the documentation for the customization `company-backends`
+for details.
+"
   (case command
 	('init (and (cpsb/get-comint) (sleep-for .5)))
 	('prefix (and (eq major-mode 'php-mode)
 				  (or (company-grab-symbol) 'stop)))
 	('sorted t)
-	('candidates (cond
-				  ((company-in-string-or-comment)
-				   (all-completions arg cpsb/at-tags))
-				  ((save-excursion
-					 (and (re-search-backward "\\s-+" nil t)
-						  (looking-back "new" 4)))
-				   (all-completions arg (cpsb/php-classes)))
-				  
-				  (t (all-completions arg  (cpsb/php-functions)))))
-	('meta (cpsb/get-short-doc arg))))
+	('candidates (cpsb/candidates command arg))
+	('meta (cpsb/fetch-short-doc arg))))
+
 
 (provide 'company-php-session-backend)
 
