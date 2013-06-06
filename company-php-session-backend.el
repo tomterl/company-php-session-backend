@@ -6,7 +6,7 @@
 ;; Author: Tom Regner
 ;; Maintainer: Tom Regner <tom@goochesa.de>
 ;;
-;; Version: 0.0.1
+;; Version: 0.0.3
 ;;          See `company-php-session-backend-version'
 ;; Keywords: php, company, backend, completion, boris
 ;; Requires: company, deferred
@@ -47,6 +47,8 @@
 (require 'company)
 (require 'comint)
 
+(defvar company-php-session-backend-version "0.0.3"
+  "Version of this backend")
 (defvar cpsb/boris-buffer-name "php-completion"
   "Clear text part of the buffer used for the boris session.")
 
