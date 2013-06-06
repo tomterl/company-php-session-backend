@@ -20,12 +20,9 @@ Clone this repo and tell emacs about it's location
 
 ** Usage
 
-I suggest to combine it with =company-dabbrev-code= and
-=company-keywords= like
-
 #+BEGIN_SRC emacs-lisp
  (require 'company-php-session-backend)
- (add-to-list 'company-backends '(company-dabbrev-code company-php-session-backend company-keywords))
+ (add-to-list 'company-backends 'company-php-session-backend)
 #+END_SRC
 
 ** How does it work?
@@ -60,7 +57,7 @@ major obstacles:
 ** Roadmap
 - [ ] Complete docComments as 'doc-buffer result
 - [ ] caching in elisp
-- [ ] methods and members for declared classes
+- [X] methods and members for declared classes
 - [ ] method to analyze opened php-mode buffers
   to be used as post load hook and on-save hook
   - [ ] load into boris and analyze functions
