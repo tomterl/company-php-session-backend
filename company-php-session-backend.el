@@ -39,7 +39,7 @@
 ;; and add the following line to your .emacs:
 ;;
 ;;    (require 'company-php-session-backend)
-;;    (add-to-list 'company-backends '(company-dabbrev-code company-php-session-backend))
+;;    (add-to-list 'company-backends 'company-php-session-backend)
 ;; 
 ;; You have to have boris, the php repl, installed and in your $PATH.
 ;;
@@ -68,6 +68,11 @@
   "Return the buffer used to hold the boris comint session,
 creating it if it does not exist."
   (get-buffer-create (concat " *" cpsb/boris-buffer-name "*") ))
+
+(defvar cpsb/--coi nil 
+  "Holds class or instance in prefix match")
+(defvar cpsb/--acc nil 
+  "Holds accessor in prefix match (->|;;)")
 
 (defun cpsb/get-comint ()
   "Return the comint buffer attached to the boris process,
@@ -144,21 +149,86 @@ creating it -- and starting boris --  if it does not exist."
   PHP elelemnt NAME;"
   (ignore-errors 
 	(cpsb/boris-command 
-	 (concat "doc_string(\"" name "\", true);")
+	 (format "doc_string(\"%s\", true);" name)
 	 (if cpsb/redirect-string
 		 (read cpsb/redirect-string)))))
 
-(defun cpsb/candidates (command arg)
+(defun cpsb/class-members (class-or-instance acc)
+  "Retun a list of all members of CLASS-OR-INSTANCE. Return only static
+members if ACC is `::`"
+  (let ((type (cpsb/find-type class-or-instance)))
+	(ignore-errors
+	  (cpsb/boris-command
+	   (format "class_members(\"%s\",\"%s\");" type acc)
+	   (if cpsb/redirect-string
+		   (read cpsb/redirect-string))))))
+
+(defun cpsb/find-type (class-or-instance)
+  "Try to find the type of CLASS-OR-INSTANCE.
+
+- CLASS-OR-INSTANCE if it doesn't start with $
+- else try
+  - CLASS-OR-INSTANCE = new TYPE
+  - function blah(..., TYPE CLASS-OR-INSTANCE,...)
+  - @param TYPE CLASS-OR-INSTANCE"
+  (let (result)
+	(save-excursion 
+	  (if (re-search-backward
+		   (format "[[:space:]]*%s[[:space:]]*=[[:space:]]*new[[:space:]]+\\(.*\\)(" 
+				   (regexp-quote class-or-instance))
+		   nil t)
+		  (setq result (buffer-substring-no-properties (match-beginning 1) (match-end 1)))))
+	(save-excursion 
+	  (if (and (not result)
+			   (re-search-backward
+				(format "[[:space:]]*function [[:space:]]+.*[(,]\\(.*\\) %s[,)]" 
+						(regexp-quote class-or-instance))
+				nil t)) 
+		  (setq result (buffer-substring-no-properties (match-beginning 1) (match-end 1)))))
+	(save-excursion 
+	  (if (and (not result)
+			   (re-search-backward
+				(format "[[:space:]]*function [[:space:]]+.*[(,]\\(.*\\) %s[,)]" 
+						(regexp-quote class-or-instance))
+				nil t)) 
+		  (setq result (buffer-substring-no-properties (match-beginning 1) (match-end 1)))))
+	(message "Found %s" result)
+	result))
+
+(defun cpsb/candidates (arg)
   "Looks arround at point and produces more or less fitting
 completion candidates for php."
-  (cond
+  (message "Searching for %s" arg)
+  (cond 
    ((company-in-string-or-comment)
 	(all-completions arg cpsb/at-tags))
-   ((save-excursion
-	  (and (re-search-backward "\\s-+" nil t)
-		   (looking-back "new" 4)))
+   ((save-excursion (looking-back "new .*" (- (point) (+ (length arg) 10))))
 	(all-completions arg (cpsb/php-classes)))
+   ((and 
+	 (save-excursion (looking-back "\\([^:[:space:];-]\\)\\(->\\|::\\)" (point-at-bol)))
+	 (setq cpsb/--coi (match-string 1)
+		   cpsb/--acc (match-string 2)))
+	(all-completions arg (cpsb/class-members cpsb/--coi cpsb/--acc)))
    (t (all-completions arg  (cpsb/php-functions)))))
+
+(defun cpsb/prefix ()
+  "Determin the prefix length necessary to allow completion."
+  (let ((symbol (company-grab-symbol)))
+	(setq cpsb/--coi nil
+		  cpsb/--acc nil)
+	(if (save-excursion
+		  (forward-char (- (length symbol)))
+		  (looking-back "->\\|::" (- (point) 2)))
+		(progn
+		  (save-excursion
+			(if (looking-back
+				 (format "[[:space:]]+[^:[:space:]-]+\\(?:->\\|::\\)%s" 
+						 (regexp-quote symbol))) 
+				(cons 
+				 symbol
+				 t)
+			  symbol)))
+	  (or symbol 'stop))))
 
 ;;;###autoload
 (defun company-php-session-backend (command &optional arg &rest ignored)
@@ -169,11 +239,16 @@ for details.
 "
   (case command
 	('init (and (cpsb/get-comint) (sleep-for .5)))
-	('prefix (and (eq major-mode 'php-mode)
-				  (or (company-grab-symbol) 'stop)))
+	('prefix (if (eq major-mode 'php-mode)
+				 (cpsb/prefix)))
 	('sorted t)
-	('candidates (cpsb/candidates command arg))
-	('meta (cpsb/fetch-short-doc arg))))
+	('candidates (cpsb/candidates arg))
+	('meta (cpsb/fetch-short-doc arg))
+	('doc-buffer 
+	 (cpsb/boris-command 
+	  (format "doc_string(\"%s\", false);" arg)
+		(when cpsb/redirect-string
+		  (company-doc-buffer (read cpsb/redirect-string)))))))
 
 
 (provide 'company-php-session-backend)

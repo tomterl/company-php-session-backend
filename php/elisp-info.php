@@ -72,6 +72,32 @@ if(!defined("ELISP_INFO_LOADED")) {
     }
 
     /**
+     * @param string $name class name
+     * @param string type :: | ->
+     * @return string elisp list string representation
+     */
+    function class_members($name, $type) {
+        $result = array();
+        $filter = ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED | ReflectionMethod::IS_PRIVATE | ReflectionMethod::IS_ABSTRACT |ReflectionMethod::IS_FINAL;
+
+        if ($type == '::') {
+            $filter = ReflectionMethod::IS_STATIC;
+        }       
+        if (class_exists($name)) {
+            $rfl = new ReflectionClass($name);
+            $methods = $rfl->getMethods($filter);
+            foreach($methods as $method) {
+                $result[] = $method->getName();
+            };
+            $props = $rfl->getProperties($filter);
+            foreach($props as $prop) {
+                $result[] = $prop->getName();
+            }
+        }
+        print_result($result);
+    }
+
+    /**
      * @param string $name object name
      * @param boolean $short short description, or complete doc comment?
      * @return string elisp string
@@ -90,6 +116,7 @@ if(!defined("ELISP_INFO_LOADED")) {
                     $__elisp_info_cache['short_docs'][$name] = $doc;
                 }
             } else {
+                $rfl = new ReflectionFunction($name);
                 $doc = $rfl->getDocComment();
             }
         } else if (class_exists($name, false)) {
@@ -103,6 +130,7 @@ if(!defined("ELISP_INFO_LOADED")) {
                     $__elisp_info_cache['short_docs']["class_" . $name] = $doc;
                 }
             } else {
+                $rfl = new ReflectionClass($name);
                 $doc = $rfl->getDocComment();
             }
         }
