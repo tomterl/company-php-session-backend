@@ -147,13 +147,22 @@ creating it -- and starting boris --  if it does not exist."
 		  ()))))
 
 (defun cpsb/fetch-short-doc (name)
-  "Return the first 80 characters of the documenting comment of
-  PHP elelemnt NAME;"
+  "Return a short documentation of the PHP element NAME
+
+  - function: signature
+  - class: name and constructor signature"
   (ignore-errors 
 	(cpsb/boris-command 
 	 (format "doc_string(\"%s\", true);" name)
 	 (if cpsb/redirect-string
 		 (read cpsb/redirect-string)))))
+
+(defun cpsb/fetch-doc (name)
+  "Return the complete doc comment of the PHP element NAME"
+  (cpsb/boris-command 
+   (format "doc_string(\"%s\", false);" name)
+   (when cpsb/redirect-string
+	 (company-doc-buffer (read cpsb/redirect-string)))))
 
 (defun cpsb/class-members (class-or-instance acc)
   "Retun a list of all members of CLASS-OR-INSTANCE. Return only static
@@ -183,38 +192,38 @@ members if ACC is `::`"
 	(save-excursion 
 	  (if (and (not result)
 			   (re-search-backward
-				(format "[[:space:]]*function [[:space:]]+.*[(,]\\(.*\\) %s[,)]" 
-						(regexp-quote class-or-instance))
+				(format "[[:space:]]*function[[:space:]]+[^(]+([^)]*[,]?\\([^)]+\\)[[:space:]]+%s[[:space:]]*[,)]"
+						(regexp-quote (concat "&?" class-or-instance)))
 				nil t)) 
 		  (setq result (buffer-substring-no-properties (match-beginning 1) (match-end 1)))))
 	(save-excursion 
 	  (if (and (not result)
 			   (re-search-backward
-				(format "[[:space:]]*function [[:space:]]+.*[(,]\\(.*\\) %s[,)]" 
+				(format "@param[[:space:]]+\\(.*\\)[[:space:]]+%s" 
 						(regexp-quote class-or-instance))
 				nil t)) 
 		  (setq result (buffer-substring-no-properties (match-beginning 1) (match-end 1)))))
-	(message "Found %s" result)
 	result))
 
-(defun cpsb/candidates (arg)
+(defun cpsb/candidates (prefix)
   "Looks arround at point and produces more or less fitting
-completion candidates for php."
-  (message "Searching for %s" arg)
+completion candidates for PREFIX."
   (cond 
    ((company-in-string-or-comment)
-	(all-completions arg cpsb/at-tags))
-   ((save-excursion (looking-back "new .*" (- (point) (+ (length arg) 10))))
-	(all-completions arg (cpsb/php-classes)))
+	(all-completions prefix cpsb/at-tags))
+   ((save-excursion (looking-back "new .*" (- (point) (+ (length prefix) 5))))
+	(all-completions prefix (cpsb/php-classes)))
    ((and 
-	 (save-excursion (looking-back "\\([^:[:space:];-]\\)\\(->\\|::\\)" (point-at-bol)))
+	 (save-excursion (looking-back "\\([^:[:space:];()-]+\\)\\(->\\|::\\)" (point-at-bol) t))
 	 (setq cpsb/--coi (match-string 1)
 		   cpsb/--acc (match-string 2)))
-	(all-completions arg (cpsb/class-members cpsb/--coi cpsb/--acc)))
-   (t (all-completions arg  (cpsb/php-functions)))))
+	(all-completions prefix (cpsb/class-members cpsb/--coi cpsb/--acc)))
+   (t (all-completions prefix  (cpsb/php-functions)))))
 
 (defun cpsb/prefix ()
-  "Determin the prefix length necessary to allow completion."
+  "Determin the prefix length necessary to allow completion.
+
+In case of instance or class access (->|::), complete immediatly."
   (let ((symbol (company-grab-symbol)))
 	(setq cpsb/--coi nil
 		  cpsb/--acc nil)
@@ -225,7 +234,7 @@ completion candidates for php."
 		  (save-excursion
 			(if (looking-back
 				 (format "[[:space:]]+[^:[:space:]-]+\\(?:->\\|::\\)%s" 
-						 (regexp-quote symbol))) 
+						 (regexp-quote symbol)) (point-at-bol)) 
 				(cons 
 				 symbol
 				 t)
@@ -246,11 +255,7 @@ for details.
 	('sorted t)
 	('candidates (cpsb/candidates arg))
 	('meta (cpsb/fetch-short-doc arg))
-	('doc-buffer 
-	 (cpsb/boris-command 
-	  (format "doc_string(\"%s\", false);" arg)
-		(when cpsb/redirect-string
-		  (company-doc-buffer (read cpsb/redirect-string)))))))
+	('doc-buffer (cpsb/fetch-doc arg))))
 
 
 (provide 'company-php-session-backend)

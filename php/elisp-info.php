@@ -79,7 +79,7 @@ if(!defined("ELISP_INFO_LOADED")) {
     function class_members($name, $type) {
         $result = array();
         $filter = ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED | ReflectionMethod::IS_PRIVATE | ReflectionMethod::IS_ABSTRACT |ReflectionMethod::IS_FINAL;
-
+        
         if ($type == '::') {
             $filter = ReflectionMethod::IS_STATIC;
         }       
@@ -116,8 +116,13 @@ if(!defined("ELISP_INFO_LOADED")) {
                     $__elisp_info_cache['short_docs'][$name] = $doc;
                 }
             } else {
-                $rfl = new ReflectionFunction($name);
-                $doc = $rfl->getDocComment();
+                if (array_key_exists($name, $__elisp_info_cache['docs'])) {
+                    $doc = $__elisp_info_cache['docs'][$name];
+                } else {
+                    $rfl = new ReflectionFunction($name);
+                    $doc = $rfl->getDocComment();
+                    $__elisp_info_cache['docs'][$name] = $doc;
+                }
             }
         } else if (class_exists($name, false)) {
             if ($short) {
@@ -130,8 +135,14 @@ if(!defined("ELISP_INFO_LOADED")) {
                     $__elisp_info_cache['short_docs']["class_" . $name] = $doc;
                 }
             } else {
-                $rfl = new ReflectionClass($name);
-                $doc = $rfl->getDocComment();
+                if (array_key_exists($name, 
+                                     $__elisp_info_cache['docs']["class_" . $name])) {
+                    $doc = $__elisp_info_cache['docs']["class_" . $name];
+                } else {
+                    $rfl = new ReflectionClass($name);
+                    $doc = $rfl->getDocComment();
+                    $__elisp_info_cache['docs']["class_" . $name] = $doc;
+                }
             }
         }
 
@@ -163,7 +174,7 @@ if(!defined("ELISP_INFO_LOADED")) {
      * @param ReflectionFunction $func function to build doc string for
      * @return string short doc string for $func
      */
-    function build_func_string(ReflectionFunction &$func) {
+    function build_func_string(ReflectionFunctionAbstract &$func) {
         $str = "";
         $matches = array();
 
@@ -171,7 +182,6 @@ if(!defined("ELISP_INFO_LOADED")) {
             $str .= $matches[1] . " ";
         }
         $name = $func->getName();
-
         $str .= $name . "";
         $str .= "(";
         if ($func->getNumberOfParameters() > 0) {
@@ -208,6 +218,17 @@ if(!defined("ELISP_INFO_LOADED")) {
         return $str;
     }
 
-    function build_class_string($name) {
+    /**
+     * @param ReflectionClass $name
+     */
+    function build_class_string(ReflectionClass $name) {
+        $str = "";
+        $name->isFinal() && $str .= "final ";
+        $name->isAbstract() && $str .= "abstract ";
+        $str .= $name->isInterface() ? 'interface ' : 'class ';
+        $str .= $name->getName();
+        $method = $name->getConstructor();
+        $str .= " " . build_func_string($method);
+        return $str;
     }
 }
