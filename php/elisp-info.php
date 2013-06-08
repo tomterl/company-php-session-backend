@@ -72,19 +72,21 @@ if(!defined("ELISP_INFO_LOADED")) {
     }
 
     /**
-     * @param string $name class name
+     * @param string $class class class
      * @param string type :: | ->
      * @return string elisp list string representation
      */
-    function class_members($name, $type) {
+    function class_members($class, $type) {
         $result = array();
-        $filter = ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED | ReflectionMethod::IS_PRIVATE | ReflectionMethod::IS_ABSTRACT |ReflectionMethod::IS_FINAL;
+        $filter = ReflectionMethod::IS_PUBLIC | ReflectionMethod::IS_PROTECTED
+        | ReflectionMethod::IS_PRIVATE | ReflectionMethod::IS_ABSTRACT
+        | ReflectionMethod::IS_FINAL;
         
         if ($type == '::') {
             $filter = ReflectionMethod::IS_STATIC;
         }       
-        if (class_exists($name)) {
-            $rfl = new ReflectionClass($name);
+        if (class_exists($class)) {
+            $rfl = new ReflectionClass($class);
             $methods = $rfl->getMethods($filter);
             foreach($methods as $method) {
                 $result[] = $method->getName();
@@ -93,12 +95,15 @@ if(!defined("ELISP_INFO_LOADED")) {
             foreach($props as $prop) {
                 $result[] = $prop->getName();
             }
+            $consts = $rfl->getConstants();
+            $consts = array_keys($consts);
+            $result = array_merge($result, $consts);
         }
         print_result($result);
     }
 
     /**
-     * @param string $name object name
+     * @param string $name object class
      * @param boolean $short short description, or complete doc comment?
      * @return string elisp string
      */
@@ -126,8 +131,8 @@ if(!defined("ELISP_INFO_LOADED")) {
             }
         } else if (class_exists($name, false)) {
             if ($short) {
-                if (array_key_exists($name, 
-                                     $__elisp_info_cache['short_docs']["class_" . $name])) {
+                if (array_key_exists("class_" . $name, 
+                                     $__elisp_info_cache['short_docs'])) {
                     $doc = $__elisp_info_cache['short_docs']["class_" . $name];
                 } else {
                     $rfl = new ReflectionClass($name);
@@ -135,8 +140,8 @@ if(!defined("ELISP_INFO_LOADED")) {
                     $__elisp_info_cache['short_docs']["class_" . $name] = $doc;
                 }
             } else {
-                if (array_key_exists($name, 
-                                     $__elisp_info_cache['docs']["class_" . $name])) {
+                if (array_key_exists("class_" . $name, 
+                                     $__elisp_info_cache['docs'])) {
                     $doc = $__elisp_info_cache['docs']["class_" . $name];
                 } else {
                     $rfl = new ReflectionClass($name);
@@ -219,16 +224,17 @@ if(!defined("ELISP_INFO_LOADED")) {
     }
 
     /**
-     * @param ReflectionClass $name
+     * @param ReflectionClass $class
+     * @return string
      */
-    function build_class_string(ReflectionClass $name) {
+    function build_class_string(ReflectionClass $class) {
         $str = "";
-        $name->isFinal() && $str .= "final ";
-        $name->isAbstract() && $str .= "abstract ";
-        $str .= $name->isInterface() ? 'interface ' : 'class ';
-        $str .= $name->getName();
-        $method = $name->getConstructor();
+        $class->isFinal() && $str .= "final ";
+        $class->isAbstract() && $str .= "abstract ";
+        $str .= $class->isInterface() ? 'interface ' : 'class ';
+        $str .= $class->getName();
+        $method = $class->getConstructor();
         $str .= " " . build_func_string($method);
-        return $str;
+         return $str;
     }
 }
