@@ -75,6 +75,8 @@ creating it if it does not exist."
   "Holds class or instance in prefix match")
 (defvar cpsb/--acc nil 
   "Holds accessor in prefix match (->|;;)")
+(defvar cpsb/--typ nil
+  "Holds the type found for cpsb/--coi")
 
 (defun cpsb/get-comint ()
   "Return the comint buffer attached to the boris process,
@@ -153,14 +155,14 @@ creating it -- and starting boris --  if it does not exist."
   - class: name and constructor signature"
   (ignore-errors 
 	(cpsb/boris-command 
-	 (format "doc_string(\"%s\", true);" name)
+	 (format "doc_string(\"%s\", true, \"%s\");" name cpsb/--typ)
 	 (if cpsb/redirect-string
 		 (read cpsb/redirect-string)))))
 
 (defun cpsb/fetch-doc (name)
   "Return the complete doc comment of the PHP element NAME"
   (cpsb/boris-command 
-   (format "doc_string(\"%s\", false);" name)
+   (format "doc_string(\"%s\", false, \"%s\");" name cpsb/--typ)
    (when cpsb/redirect-string
 	 (company-doc-buffer (read cpsb/redirect-string)))))
 
@@ -203,6 +205,7 @@ members if ACC is `::`"
 						(regexp-quote class-or-instance))
 				nil t)) 
 		  (setq result (buffer-substring-no-properties (match-beginning 1) (match-end 1)))))
+	(setq cpsb/--typ result)
 	result))
 
 (defun cpsb/candidates (prefix)
@@ -226,7 +229,8 @@ completion candidates for PREFIX."
 In case of instance or class access (->|::), complete immediatly."
   (let ((symbol (company-grab-symbol)))
 	(setq cpsb/--coi nil
-		  cpsb/--acc nil)
+		  cpsb/--acc nil
+		  cpsb/--typ nil)
 	(if (save-excursion
 		  (forward-char (- (length symbol)))
 		  (looking-back "->\\|::" (- (point) 2)))

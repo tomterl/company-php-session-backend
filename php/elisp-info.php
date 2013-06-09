@@ -103,57 +103,103 @@ if(!defined("ELISP_INFO_LOADED")) {
     }
 
     /**
-     * @param string $name object class
+     * @param string $name object name - function, class, member
      * @param boolean $short short description, or complete doc comment?
+     * @param string $class if != "", $name is a member of $class
      * @return string elisp string
      */
-    function doc_string($name, $short = false) {
+    function doc_string($name, $short = false, $class = "") {
+        global $__elisp_info_cache;
         if (!$name || $name == '') return "";
         global $__elisp_info_cache;
         $doc = "";
-        if (function_exists($name)) {
-            if ($short) {
-                if (array_key_exists($name, $__elisp_info_cache['short_docs'])) {
-                    $doc = $__elisp_info_cache['short_docs'][$name];
-                } else {
-                    $rfl = new ReflectionFunction($name);
-                    $doc = build_func_string($rfl);
-                    $__elisp_info_cache['short_docs'][$name] = $doc;
-                }
-            } else {
-                if (array_key_exists($name, $__elisp_info_cache['docs'])) {
-                    $doc = $__elisp_info_cache['docs'][$name];
-                } else {
-                    $rfl = new ReflectionFunction($name);
-                    $doc = $rfl->getDocComment();
-                    $__elisp_info_cache['docs'][$name] = $doc;
-                }
-            }
-        } else if (class_exists($name, false)) {
-            if ($short) {
-                if (array_key_exists("class_" . $name, 
-                                     $__elisp_info_cache['short_docs'])) {
-                    $doc = $__elisp_info_cache['short_docs']["class_" . $name];
-                } else {
-                    $rfl = new ReflectionClass($name);
-                    $doc = build_class_string($rfl);
-                    $__elisp_info_cache['short_docs']["class_" . $name] = $doc;
-                }
-            } else {
-                if (array_key_exists("class_" . $name, 
-                                     $__elisp_info_cache['docs'])) {
-                    $doc = $__elisp_info_cache['docs']["class_" . $name];
-                } else {
-                    $rfl = new ReflectionClass($name);
-                    $doc = $rfl->getDocComment();
-                    $__elisp_info_cache['docs']["class_" . $name] = $doc;
-                }
+        if ($class != "" && $class != "nil") {
+            $doc = doc_string_member($name, $class, $short);
+        } else {
+            if (function_exists($name)) {
+                $doc = doc_string_function($name, $short);
+            } else if (class_exists($name, false)) {
+                $doc = doc_string_class($name, $short);
             }
         }
 
         $doc = preg_replace("~\n~s", "\\n", $doc);
         print_result($doc);
 
+    }
+
+    /**
+     * @param string $name class name
+     * @param boolean $short
+     * @return string
+     */
+    function doc_string_class($name, $short) {
+        global $__elisp_info_cache;
+        $doc = "";
+        if ($short) {
+            if (array_key_exists("class_" . $name, 
+                                 $__elisp_info_cache['short_docs'])) {
+                $doc = $__elisp_info_cache['short_docs']["class_" . $name];
+            } else {
+                $rfl = new ReflectionClass($name);
+                $doc = build_class_string($rfl);
+                $__elisp_info_cache['short_docs']["class_" . $name] = $doc;
+            }
+        } else {
+            if (array_key_exists("class_" . $name, 
+                                 $__elisp_info_cache['docs'])) {
+                $doc = $__elisp_info_cache['docs']["class_" . $name];
+            } else {
+                $rfl = new ReflectionClass($name);
+                $doc = $rfl->getDocComment();
+                $__elisp_info_cache['docs']["class_" . $name] = $doc;
+            }
+        }
+        return $doc;
+    }
+
+    /**
+     * @param string $name function name
+     * @return string
+     */
+    function doc_string_function($name, $short = true) {
+        $doc = "";
+        if ($short) {
+            if (array_key_exists($name, $__elisp_info_cache['short_docs'])) {
+                $doc = $__elisp_info_cache['short_docs'][$name];
+            } else {
+                $rfl = new ReflectionFunction($name);
+                $doc = build_func_string($rfl);
+                $__elisp_info_cache['short_docs'][$name] = $doc;
+            }
+        } else {
+            if (array_key_exists($name, $__elisp_info_cache['docs'])) {
+                $doc = $__elisp_info_cache['docs'][$name];
+            } else {
+                $rfl = new ReflectionFunction($name);
+                $doc = $rfl->getDocComment();
+                $__elisp_info_cache['docs'][$name] = $doc;
+            }
+        }
+        return $doc;
+    }
+
+    /**
+     * @param string $name member to document
+     * @param string $class
+     * @param boolean $short
+     * @return string
+     */
+    function doc_string_member($name, $class, $short) {
+        $doc = "";
+        $rfl = new ReflectionClass($class);
+        $mem = $rfl->getMethod($name);
+        if ($short) {
+            $doc = build_func_string($mem);
+        } else {
+            $doc = $mem->getDocComment();
+        }
+        return $doc;
     }
 
     /**
