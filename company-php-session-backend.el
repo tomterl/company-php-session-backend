@@ -47,13 +47,18 @@
 (require 'company)
 (require 'comint)
 
+;; customizations
+
+(defcustom cpsb/boris-program "/home/tom/bin/boris"
+  "The boris executable" :group 'company-php )
+
+;; internal variables
 (defvar company-php-session-backend-version "0.0.3"
   "Version of this backend")
+
 (defvar cpsb/boris-buffer-name "php-completion"
   "Clear text part of the buffer used for the boris session.")
 
-(defvar cpsb/boris-program "/home/tom/bin/boris"
-  "The boris executable")
 
 (defvar cpsb/php-libpath 
   (concat 
@@ -66,17 +71,47 @@
 (defvar cpsb/at-tags '("@author"  "@param"  "@return")
 "php-doc tags in comments")
 
+(defvar cpsb/--coi nil 
+  "Holds class or instance in prefix match")
+
+(defvar cpsb/--acc nil 
+  "Holds accessor in prefix match (->|;;)")
+
+(defvar cpsb/--typ nil
+  "Holds the type found for cpsb/--coi")
+
+;; macros
+(defmacro cpsb/boris-command  (command &rest body)
+  "Send php COMMAND to boris, execute BODY after boris finished.
+
+ In BODY you can access the output of COMMAND in
+`cpsb/redirect-string`"
+  `(save-excursion 
+	 (with-current-buffer (cpsb/get-comint) (goto-char (point-max)))
+	 ;; clear old output
+	 (unwind-protect	
+		 (let (cpsb/redirect-strings cpsb/redirect-string)
+		   (setq cpsb/redirect-strings 
+				 (comint-redirect-results-list-from-process
+				  (cpsb/get-comint-process)
+				  ,command
+				  ";; -- php completion begin ;;\\([\"(].+[\")]\\);; -- php completion end ;;"
+				  1))
+		   (setq cpsb/redirect-string
+				 (car cpsb/redirect-strings))
+		   ,@body)
+	   ;; clear boris buffer
+	   (with-current-buffer (cpsb/get-boris-buffer)
+		 (goto-char 0)
+		 (comint-bol)
+		 (kill-region (point) (point-max))))))
+(def-edebug-spec cpsb/boris-command (command body)) 
+
+;; internal functions
 (defun cpsb/get-boris-buffer ()
   "Return the buffer used to hold the boris comint session,
 creating it if it does not exist."
   (get-buffer-create (concat " *" cpsb/boris-buffer-name "*") ))
-
-(defvar cpsb/--coi nil 
-  "Holds class or instance in prefix match")
-(defvar cpsb/--acc nil 
-  "Holds accessor in prefix match (->|;;)")
-(defvar cpsb/--typ nil
-  "Holds the type found for cpsb/--coi")
 
 (defun cpsb/get-comint ()
   "Return the comint buffer attached to the boris process,
@@ -104,32 +139,6 @@ creating it -- and starting boris --  if it does not exist."
 		   cpsb/internal-function-list)
 	  cpsb/internal-function-list
 	(cpsb/fetch-internal-function-list)))
-
-(defmacro cpsb/boris-command  (command &rest body)
-  "Send php COMMAND to boris, execute BODY after boris finished.
-
- In BODY you can access the output of COMMAND in
-`cpsb/redirect-string`"
-  `(save-excursion 
-	 (with-current-buffer (cpsb/get-comint) (goto-char (point-max)))
-	 ;; clear old output
-	 (unwind-protect	
-		 (let (cpsb/redirect-strings cpsb/redirect-string)
-		   (setq cpsb/redirect-strings 
-				 (comint-redirect-results-list-from-process
-				  (cpsb/get-comint-process)
-				  ,command
-				  ";; -- php completion begin ;;\\([\"(].+[\")]\\);; -- php completion end ;;"
-				  1))
-		   (setq cpsb/redirect-string
-				 (car cpsb/redirect-strings))
-		   ,@body)
-	   ;; clear boris buffer
-	   (with-current-buffer (cpsb/get-boris-buffer)
-		 (goto-char 0)
-		 (comint-bol)
-		 (kill-region (point) (point-max))))))
-(def-edebug-spec cpsb/boris-command (command body)) 
 
 (defun cpsb/php-classes ()
   "Ask boris for all declared classes, return their names as list"
@@ -205,8 +214,7 @@ members if ACC is `::`"
 						(regexp-quote class-or-instance))
 				nil t)) 
 		  (setq result (buffer-substring-no-properties (match-beginning 1) (match-end 1)))))
-	(setq cpsb/--typ result)
-	result))
+	(setq cpsb/--typ result)))
 
 (defun cpsb/candidates (prefix)
   "Looks arround at point and produces more or less fitting
@@ -224,7 +232,7 @@ completion candidates for PREFIX."
    (t (all-completions prefix  (cpsb/php-functions)))))
 
 (defun cpsb/prefix ()
-  "Determin the prefix length necessary to allow completion.
+  "Return the current prefix.
 
 In case of instance or class access (->|::), complete immediatly."
   (let ((symbol (company-grab-symbol)))
