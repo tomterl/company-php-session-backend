@@ -277,10 +277,11 @@ if(!defined("ELISP_INFO_LOADED")) {
         $str = "";
         $class->isFinal() && $str .= "final ";
         $class->isAbstract() && $str .= "abstract ";
-        $str .= $class->isInterface() ? 'interface ' : 'class ';
+        $str .= $class->isInterface() ? 'interface ' : 
+            PHP_VERSION_ID > 50400 && $class->isTrait() ? 'trait ' : 'class ';
         $str .= $class->getName();
         $method = $class->getConstructor();
-        $str .= " " . build_func_string($method);
+        $method && ($str .= " " . build_func_string($method));
          return $str;
     }
 }
