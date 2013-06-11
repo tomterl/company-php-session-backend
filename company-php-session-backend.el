@@ -151,7 +151,7 @@ creating it -- and starting boris --  if it does not exist."
   "Ask boris for all defined internal php-functions, return their
   names as list; set cpsb/internal-function-list"
   (cpsb/boris-command 
-   "defined_internal_functions();" 
+   "defined_functions();" 
    (setq cpsb/internal-function-list
 		(if cpsb/redirect-string
 			(read cpsb/redirect-string)

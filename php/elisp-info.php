@@ -23,6 +23,7 @@
 ;;
 ;;; Commentary:
 ;;  This file provides php functions that emacs can call in a boris comint process
+;;  
 */
 if(!defined("ELISP_INFO_LOADED")) {
     define("ELISP_INFO_LOADED", TRUE);
@@ -30,7 +31,7 @@ if(!defined("ELISP_INFO_LOADED")) {
     define("RESULT_MARK_END", ";; -- php completion end ;;");
 
     $__elisp_info_cache = array (
-        'internal' => null,
+        'functions' => null,
         'short_docs' => array(),
         'docs' => array(),
         'classes' => null
@@ -39,20 +40,14 @@ if(!defined("ELISP_INFO_LOADED")) {
     /**
      * @return string elisp list string representation
      */
-    function defined_internal_functions() {
-        defined_functions("internal");
-    }
-
-    /**
-     * @return string elisp list string representation
-     */
-    function defined_functions($type) {
+    function defined_functions() {
         global $__elisp_info_cache;
-        if($__elisp_info_cache['internal']) {
-            print_result($__elisp_info_cache['internal']);
+        if($__elisp_info_cache['functions']) {
+            print_result($__elisp_info_cache['functions']);
         } else {
             $funcs=get_defined_functions();
-            $__elisp_info_cache['internal'] = $funcs;
+            $funcs = array_merge($funcs['internal'],$funcs['user']);
+            $__elisp_info_cache['functions'] = $funcs;
             print_result($funcs[$type]);
         }
     }
