@@ -69,6 +69,7 @@ major obstacles:
   - [ ] analyze any required() files
   - [ ] support autoloader
   - [ ] allow redefinition of classes and functions
+  - [ ] namespaces
 - [ ] persist completion data (prin1-s-exps in sqlite3?!)
 - [ ] use deferred.el to analyze in background
 - [ ] allow for/ease eproject.el integration
