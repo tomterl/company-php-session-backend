@@ -198,8 +198,10 @@ if(!defined("ELISP_INFO_LOADED")) {
     }
 
     /**
+     * prints $arg as elisp readable string between result markers
+     * 
      * @param array|string $arg
-     * @return string elisp string representation of $arg
+     * @return void
      */
     function print_result($arg) {
         if (is_array($arg)) {
