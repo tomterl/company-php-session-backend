@@ -55,13 +55,15 @@ major obstacles:
   could be a viable solution.
 
 ** Roadmap
-- [ ] Complete docComments as 'doc-buffer result
+- [X] Complete docComments as 'doc-buffer result
 - [ ] caching in elisp
 - [X] methods and members for declared classes This only works if one
   of the following is present in the current buffer
   - ~$var = new Class()~
   - ~function name(... Class $var ...)~
   - ~@param Class $var ...~
+- [ ] support call chains, only when the return type is declared in
+  the doc comment for functions/methods
 - [ ] method to analyze opened php-mode buffers
   to be used as post load hook and on-save hook
   - [ ] load into boris and analyze functions
