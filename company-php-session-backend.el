@@ -68,7 +68,12 @@
 (defvar cpsb/internal-function-list '() 
   "Holds the list of php internal function names")
 
-(defvar cpsb/at-tags '("@author"  "@param"  "@return")
+(defvar cpsb/at-tags '("@abstract" "@access"
+"@author" "@category" "@copyright" "@deprecated" "@example"
+"@final" "@filesource" "@global" "@ignore" "@internal"
+"@license" "@link" "@method" "@name" "@package" "@param"
+"@property" "@return" "@see" "@since" "@static" "@staticvar"
+"@subpackage" "@todo" "@tutorial" "@uses" "@var" "@version")
 "php-doc tags in comments")
 
 (defvar cpsb/--coi nil 
@@ -239,19 +244,24 @@ In case of instance or class access (->|::), complete immediatly."
 	(setq cpsb/--coi nil
 		  cpsb/--acc nil
 		  cpsb/--typ nil)
-	(if (save-excursion
-		  (forward-char (- (length symbol)))
-		  (looking-back "->\\|::" (- (point) 2)))
-		(progn
-		  (save-excursion
-			(if (looking-back
-				 (format "[[:space:]]+[^:[:space:]-]+\\(?:->\\|::\\)%s" 
-						 (regexp-quote symbol)) (point-at-bol)) 
-				(cons 
-				 symbol
-				 t)
-			  symbol)))
-	  (or symbol 'stop))))
+	(cond 
+	 ((save-excursion
+		(forward-char (- (length symbol)))
+		(looking-back "->\\|::" (- (point) 2)))
+	  (progn
+		(save-excursion
+		  (if (looking-back
+			   (format "[[:space:]]+[^:[:space:]-]+\\(?:->\\|::\\)%s" 
+					   (regexp-quote symbol)) (point-at-bol)) 
+			  (cons 
+			   symbol
+			   t)
+			symbol))))
+	 ((save-excursion 
+		(forward-char (- (length symbol)))
+		(looking-back "@" (- (point) 1)))
+	  (concat "@" symbol))
+	 (t (or symbol 'stop)))))
 
 ;;;###autoload
 (defun company-php-session-backend (command &optional arg &rest ignored)
