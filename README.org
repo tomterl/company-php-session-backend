@@ -1,3 +1,8 @@
+* Maintenance notice
+
+This project is unmaintained, development stoppped. ac-php is a working 
+implementation of auto-complete and company backends.
+
 * Dynamic completion candidates in PHP code with boris
 
 ** Status
